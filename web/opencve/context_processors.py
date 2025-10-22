@@ -1,4 +1,17 @@
+import os
+from pathlib import Path
 from urllib.parse import urlencode
+
+
+def get_version():
+    """Read version from VERSION file"""
+    try:
+        version_file = Path(__file__).resolve().parent.parent.parent.parent / "VERSION"
+        if version_file.exists():
+            return version_file.read_text().strip()
+    except Exception:
+        pass
+    return "dev"
 
 
 def canonical_url_context(request):
@@ -36,3 +49,8 @@ def canonical_url_context(request):
         base_url = f"{base_url}?{urlencode(sorted_query_params)}"
 
     return {"canonical_url": base_url}
+
+
+def version_context(request):
+    """Add OpenCVE version to template context"""
+    return {"opencve_version": get_version()}
