@@ -13,6 +13,7 @@ from cves.resources import (
 )
 from organizations.resources import OrganizationViewSet
 from projects.resources import ProjectCveViewSet, ProjectViewSet
+from opencve.views import TriggerSyncView
 from users.views import CustomLoginView, CustomSignupView
 
 # API Router
@@ -63,6 +64,7 @@ urlpatterns = [
     path(r"signup/", CustomSignupView.as_view(), name="account_signup"),
     path("settings/", include("users.urls")),
     path("admin/", admin.site.urls),
+    path("admin/trigger-sync", TriggerSyncView.as_view(), name="admin_trigger_sync"),
     path("hijack/", include("hijack.urls")),
     # API routes
     path("api/", include(router.urls)),

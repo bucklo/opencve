@@ -946,4 +946,70 @@ function getContrastedColor(str){
     });
   }
 
+  /*
+   Admin Sync Trigger Button
+  */
+  $('#trigger-sync-btn').on('click', function() {
+    const $btn = $(this);
+    const originalHtml = $btn.html();
+
+    // Disable button and show loading state
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Syncing...');
+
+    $.ajax({
+      url: '/admin/trigger-sync',
+      type: 'POST',
+      success: function(data) {
+        if (data.success) {
+          // Show success state
+          $btn.removeClass('btn-warning').addClass('btn-success')
+              .html('<i class="fa fa-check"></i> Sync Started!');
+
+          // Optional: Show link to Airflow UI
+          if (data.airflow_url) {
+            console.log('View sync progress:', data.airflow_url);
+          }
+
+          // Reset button after 3 seconds
+          setTimeout(function() {
+            $btn.prop('disabled', false)
+                .removeClass('btn-success').addClass('btn-warning')
+                .html(originalHtml);
+          }, 3000);
+        } else {
+          // Show error state
+          $btn.removeClass('btn-warning').addClass('btn-danger')
+              .html('<i class="fa fa-times"></i> Failed');
+
+          console.error('Sync failed:', data.error);
+
+          // Reset button after 3 seconds
+          setTimeout(function() {
+            $btn.prop('disabled', false)
+                .removeClass('btn-danger').addClass('btn-warning')
+                .html(originalHtml);
+          }, 3000);
+        }
+      },
+      error: function(xhr, status, error) {
+        // Show error state
+        $btn.removeClass('btn-warning').addClass('btn-danger')
+            .html('<i class="fa fa-times"></i> Error');
+
+        let errorMsg = 'Unknown error';
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          errorMsg = xhr.responseJSON.error;
+        }
+        console.error('Sync error:', errorMsg);
+
+        // Reset button after 3 seconds
+        setTimeout(function() {
+          $btn.prop('disabled', false)
+              .removeClass('btn-danger').addClass('btn-warning')
+              .html(originalHtml);
+        }, 3000);
+      }
+    });
+  });
+
   });
