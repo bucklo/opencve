@@ -1,12 +1,16 @@
 import importlib
+import json
+import requests
+from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Prefetch, Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.views import View
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -451,3 +455,96 @@ class NotificationDeleteView(
                 "project_name": self.project.name,
             },
         )
+
+
+class NotificationTestView(
+    LoginRequiredMixin,
+    OrganizationIsOwnerMixin,
+    ProjectObjectMixin,
+    ProjectIsActiveMixin,
+    View,
+):
+    """Test a webhook notification by sending a sample payload"""
+
+    def post(self, request, *args, **kwargs):
+        notification = get_object_or_404(
+            Notification,
+            project=self.project,
+            name=self.kwargs["notification"],
+        )
+
+        if notification.type != "webhook":
+            return JsonResponse(
+                {"success": False, "error": "Only webhook notifications can be tested"},
+                status=400,
+            )
+
+        # Create a sample test payload
+        now = datetime.utcnow()
+        test_payload = {
+            "organization": request.current_organization.name,
+            "project": self.project.name,
+            "notification": notification.name,
+            "subscriptions": {
+                "raw": self.project.subscriptions.get("vendors", [])
+                + self.project.subscriptions.get("products", []),
+                "human": ["Test Subscription"],
+            },
+            "matched_subscriptions": {"raw": ["test_vendor"], "human": ["Test Vendor"]},
+            "title": "Test notification from OpenCVE",
+            "period": {
+                "start": (now - timedelta(hours=1)).isoformat() + "+00:00",
+                "end": now.isoformat() + "+00:00",
+            },
+            "changes": [
+                {
+                    "cve": {
+                        "cve_id": "CVE-2024-TEST",
+                        "description": "This is a test notification. No actual CVE changes occurred.",
+                        "cvss31": 7.5,
+                        "subscriptions": {
+                            "raw": ["test_vendor"],
+                            "human": ["Test Vendor"],
+                        },
+                    },
+                    "events": [{"type": "test", "data": {"message": "Test event"}}],
+                }
+            ],
+        }
+
+        # Get webhook configuration
+        url = notification.configuration.get("extras", {}).get("url")
+        headers = notification.configuration.get("extras", {}).get("headers", {})
+
+        if not url:
+            return JsonResponse(
+                {"success": False, "error": "Webhook URL not configured"}, status=400
+            )
+
+        # Add content-type header
+        headers["Content-Type"] = "application/json"
+
+        try:
+            # Send the test webhook
+            response = requests.post(
+                url, json=test_payload, headers=headers, timeout=10
+            )
+            return JsonResponse(
+                {
+                    "success": response.status_code < 400,
+                    "status_code": response.status_code,
+                    "error": response.text if response.status_code >= 400 else None,
+                }
+            )
+        except requests.exceptions.Timeout:
+            return JsonResponse(
+                {"success": False, "error": "Request timeout (>10s)"}, status=408
+            )
+        except requests.exceptions.ConnectionError as e:
+            return JsonResponse(
+                {"success": False, "error": f"Connection error: {str(e)}"}, status=503
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "error": f"Unexpected error: {str(e)}"}, status=500
+            )

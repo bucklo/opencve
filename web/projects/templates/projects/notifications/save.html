@@ -117,4 +117,98 @@
     </div>
 </form>
 
+<!-- Webhook Payload Example Modal -->
+<div class="modal fade" id="webhookPayloadModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title">Webhook Payload Example</h4>
+            </div>
+            <div class="modal-body">
+                <p>Your webhook endpoint will receive a POST request with the following JSON structure:</p>
+                <pre><code>{
+  "organization": "my-organization",
+  "project": "my-project",
+  "notification": "my-webhook-notification",
+  "subscriptions": {
+    "raw": ["vendor1", "vendor2$PRODUCT$product1"],
+    "human": ["Vendor1", "Product1"]
+  },
+  "matched_subscriptions": {
+    "raw": ["vendor1"],
+    "human": ["Vendor1"]
+  },
+  "title": "2 changes on Vendor1",
+  "period": {
+    "start": "2024-01-15T00:00:00+00:00",
+    "end": "2024-01-15T23:59:59+00:00"
+  },
+  "changes": [
+    {
+      "cve": {
+        "cve_id": "CVE-2024-1234",
+        "description": "A vulnerability was found in...",
+        "cvss31": 7.5,
+        "subscriptions": {
+          "raw": ["vendor1"],
+          "human": ["Vendor1"]
+        }
+      },
+      "events": [
+        {
+          "type": "metrics",
+          "data": {...}
+        }
+      ]
+    }
+  ]
+}</code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if object and type == 'webhook' %}
+<script>
+document.getElementById('testWebhookBtn').addEventListener('click', function() {
+    var btn = this;
+    var resultSpan = document.getElementById('webhookTestResult');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Testing...';
+    resultSpan.innerHTML = '';
+
+    fetch('{% url "test_notification" org_name=request.current_organization.name project_name=project.name notification=object.name %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-paper-plane"></i> Test Webhook';
+
+        if (data.success) {
+            resultSpan.innerHTML = '<span class="text-success"><i class="fa fa-check"></i> Success! Status: ' + data.status_code + '</span>';
+        } else {
+            resultSpan.innerHTML = '<span class="text-danger"><i class="fa fa-times"></i> Failed: ' + data.error + '</span>';
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-paper-plane"></i> Test Webhook';
+        resultSpan.innerHTML = '<span class="text-danger"><i class="fa fa-times"></i> Error: ' + error.message + '</span>';
+    });
+});
+</script>
+{% endif %}
+
 {% endblock %}

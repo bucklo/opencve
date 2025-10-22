@@ -166,7 +166,7 @@ class WebhookNotifier(BaseNotifier):
     type = "webhook"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.url = self.config.get("extras").get("url")
         self.headers = self.config.get("extras").get("headers", {})
 
@@ -211,7 +211,7 @@ class EmailNotifier(BaseNotifier):
     type = "email"
 
     def __init__(self, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.email = self.config.get("extras").get("email")
 
     def get_template_context(self):

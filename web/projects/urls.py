@@ -5,6 +5,7 @@ from projects.views import (
     NotificationCreateView,
     NotificationsView,
     NotificationDeleteView,
+    NotificationTestView,
     NotificationUpdateView,
     ProjectCreateView,
     ProjectDeleteView,
@@ -60,6 +61,11 @@ urlpatterns = [
         "org/<org_name>/projects/<project_name>/notifications/<notification>/delete",
         NotificationDeleteView.as_view(),
         name="delete_notification",
+    ),
+    path(
+        "org/<org_name>/projects/<project_name>/notifications/<notification>/test",
+        NotificationTestView.as_view(),
+        name="test_notification",
     ),
     path(
         "org/<org_name>/projects/<project_name>/reports",
