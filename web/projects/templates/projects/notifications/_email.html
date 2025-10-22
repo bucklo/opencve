@@ -1,3 +1,17 @@
 {% load crispy_forms_tags %}
 
 {{ form.email|as_crispy_field }}
+<span class="help-block">
+    <small>
+        A test email will be sent to this address when you click the "Test Email" button below.
+    </small>
+</span>
+
+{% if object %}
+<div class="form-group">
+    <button type="button" class="btn btn-info btn-sm" id="testEmailBtn">
+        <i class="fa fa-paper-plane"></i> Test Email
+    </button>
+    <span id="emailTestResult" style="margin-left: 10px;"></span>
+</div>
+{% endif %}

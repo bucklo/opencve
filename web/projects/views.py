@@ -3,12 +3,15 @@ import json
 import requests
 from datetime import datetime, timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.mail import send_mail
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
@@ -464,7 +467,7 @@ class NotificationTestView(
     ProjectIsActiveMixin,
     View,
 ):
-    """Test a webhook notification by sending a sample payload"""
+    """Test a notification (webhook or email) by sending a sample payload"""
 
     def post(self, request, *args, **kwargs):
         notification = get_object_or_404(
@@ -473,15 +476,23 @@ class NotificationTestView(
             name=self.kwargs["notification"],
         )
 
-        if notification.type != "webhook":
+        if notification.type == "webhook":
+            return self._test_webhook(request, notification)
+        elif notification.type == "email":
+            return self._test_email(request, notification)
+        else:
             return JsonResponse(
-                {"success": False, "error": "Only webhook notifications can be tested"},
+                {
+                    "success": False,
+                    "error": f"Testing not supported for {notification.type} notifications",
+                },
                 status=400,
             )
 
-        # Create a sample test payload
+    def _create_test_payload(self, request, notification):
+        """Create a sample test payload for notifications"""
         now = datetime.utcnow()
-        test_payload = {
+        return {
             "organization": request.current_organization.name,
             "project": self.project.name,
             "notification": notification.name,
@@ -500,7 +511,7 @@ class NotificationTestView(
                 {
                     "cve": {
                         "cve_id": "CVE-2024-TEST",
-                        "description": "This is a test notification. No actual CVE changes occurred.",
+                        "description": "This is a test notification. No actual CVE changes occurred. This allows you to verify your notification settings are working correctly.",
                         "cvss31": 7.5,
                         "subscriptions": {
                             "raw": ["test_vendor"],
@@ -511,6 +522,10 @@ class NotificationTestView(
                 }
             ],
         }
+
+    def _test_webhook(self, request, notification):
+        """Test a webhook notification"""
+        test_payload = self._create_test_payload(request, notification)
 
         # Get webhook configuration
         url = notification.configuration.get("extras", {}).get("url")
@@ -547,4 +562,63 @@ class NotificationTestView(
         except Exception as e:
             return JsonResponse(
                 {"success": False, "error": f"Unexpected error: {str(e)}"}, status=500
+            )
+
+    def _test_email(self, request, notification):
+        """Test an email notification"""
+        # Get email configuration
+        email_address = notification.configuration.get("extras", {}).get("email")
+
+        if not email_address:
+            return JsonResponse(
+                {"success": False, "error": "Email address not configured"}, status=400
+            )
+
+        try:
+            # Create test email subject and body
+            subject = f"[{self.project.name}] Test notification from OpenCVE"
+
+            # Simple plain text message
+            message = f"""This is a test email notification from OpenCVE.
+
+Organization: {request.current_organization.name}
+Project: {self.project.name}
+Notification: {notification.name}
+
+If you received this email, your email notification is configured correctly!
+
+This is a test - no actual CVE changes occurred.
+
+---
+OpenCVE - CVE Monitoring Platform
+https://www.opencve.io
+"""
+
+            # Try to send the email
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=(
+                    settings.DEFAULT_FROM_EMAIL
+                    if hasattr(settings, "DEFAULT_FROM_EMAIL")
+                    else "noreply@opencve.io"
+                ),
+                recipient_list=[email_address],
+                fail_silently=False,
+            )
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f"Test email sent to {email_address}",
+                }
+            )
+
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Failed to send email: {str(e)}",
+                },
+                status=500,
             )

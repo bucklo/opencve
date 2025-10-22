@@ -211,4 +211,41 @@ document.getElementById('testWebhookBtn').addEventListener('click', function() {
 </script>
 {% endif %}
 
+{% if object and type == 'email' %}
+<script>
+document.getElementById('testEmailBtn').addEventListener('click', function() {
+    var btn = this;
+    var resultSpan = document.getElementById('emailTestResult');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
+    resultSpan.innerHTML = '';
+
+    fetch('{% url "test_notification" org_name=request.current_organization.name project_name=project.name notification=object.name %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-paper-plane"></i> Test Email';
+
+        if (data.success) {
+            resultSpan.innerHTML = '<span class="text-success"><i class="fa fa-check"></i> ' + data.message + '</span>';
+        } else {
+            resultSpan.innerHTML = '<span class="text-danger"><i class="fa fa-times"></i> Failed: ' + data.error + '</span>';
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-paper-plane"></i> Test Email';
+        resultSpan.innerHTML = '<span class="text-danger"><i class="fa fa-times"></i> Error: ' + error.message + '</span>';
+    });
+});
+</script>
+{% endif %}
+
 {% endblock %}

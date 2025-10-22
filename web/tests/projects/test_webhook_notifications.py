@@ -292,15 +292,17 @@ class TestWebhookTest:
         assert data["success"] is False
         assert data["status_code"] == 500
 
-    def test_webhook_test_email_notification_fails(
+    @patch("django.core.mail.send_mail")
+    def test_email_test_success(
         self,
+        mock_send_mail,
         auth_client,
         create_organization,
         create_project,
         create_notification,
         create_user,
     ):
-        """Test that testing email notifications is not allowed"""
+        """Test successful email notification test"""
         user = create_user()
         org = create_organization("test-org", user)
         project = create_project("test-project", org)
@@ -316,6 +318,9 @@ class TestWebhookTest:
         )
         client = auth_client(user)
 
+        # Mock successful email send
+        mock_send_mail.return_value = 1
+
         url = reverse(
             "test_notification",
             kwargs={
@@ -326,7 +331,57 @@ class TestWebhookTest:
         )
 
         response = client.post(url)
-        assert response.status_code == 400
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "test@example.com" in data["message"]
+
+        # Verify send_mail was called
+        mock_send_mail.assert_called_once()
+        call_args = mock_send_mail.call_args
+        assert "Test notification from OpenCVE" in call_args.kwargs["subject"]
+        assert "test@example.com" in call_args.kwargs["recipient_list"]
+
+    @patch("django.core.mail.send_mail")
+    def test_email_test_failure(
+        self,
+        mock_send_mail,
+        auth_client,
+        create_organization,
+        create_project,
+        create_notification,
+        create_user,
+    ):
+        """Test failed email notification test"""
+        user = create_user()
+        org = create_organization("test-org", user)
+        project = create_project("test-project", org)
+        notification = create_notification(
+            "test-email",
+            project,
+            type="email",
+            configuration={
+                "types": ["created"],
+                "metrics": {"cvss31": "0"},
+                "extras": {"email": "test@example.com"},
+            },
+        )
+        client = auth_client(user)
+
+        # Mock email send failure
+        mock_send_mail.side_effect = Exception("SMTP server error")
+
+        url = reverse(
+            "test_notification",
+            kwargs={
+                "org_name": org.name,
+                "project_name": project.name,
+                "notification": notification.name,
+            },
+        )
+
+        response = client.post(url)
+        assert response.status_code == 500
         data = response.json()
         assert data["success"] is False
-        assert "Only webhook" in data["error"]
+        assert "SMTP server error" in data["error"]
