@@ -10,7 +10,7 @@ x-airflow-common: &airflow-common
   volumes:
     - /data/opencve/dags:/opt/airflow/dags
     - ../scheduler/airflow.cfg:/opt/airflow/airflow.cfg:ro
-    - repositories:/home/airflow/repositories/
+    - /data/opencve/repositories:/home/airflow/repositories/
   depends_on: &airflow-common-depends-on
     redis:
       condition: service_healthy
@@ -97,7 +97,7 @@ services:
     volumes:
       - ../web/opencve/conf/.env:/app/opencve/web/opencve/conf/.env:ro
       - ../web/opencve/conf/settings.py:/app/opencve/web/opencve/conf/settings.py:ro
-      - repositories:/app/repositories/:ro
+      - /data/opencve/repositories:/app/repositories/:ro
       - staticfiles:/app/static/
     restart: on-failure
 
