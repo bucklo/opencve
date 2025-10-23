@@ -6,11 +6,6 @@
     Dashboard
     <button type="button" class="btn btn-default btn-sm" data-toggle="modal" data-target="#modal-add-widget"><i class="fa fa-plus"></i></button>
     <button type="button" class="btn btn-default btn-sm" id="save-dashboard"><i class="fa fa-save"></i></button>
-    {% if user.is_superuser %}
-    <button type="button" class="btn btn-warning btn-sm" id="trigger-sync-btn" title="Force CVE synchronization">
-        <i class="fa fa-refresh"></i> Sync CVEs
-    </button>
-    {% endif %}
 {% endblock %}
 
 {% block content %}
